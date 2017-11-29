@@ -45,6 +45,20 @@ func (ds *dockerService) updateCreateConfig(
 	config *runtimeapi.ContainerConfig,
 	sandboxConfig *runtimeapi.PodSandboxConfig,
 	podSandboxID string, securityOptSep rune, apiVersion *semver.Version) error {
+	// Apply Windows-specific options if applicable.
+	if wc := config.GetWindows(); wc != nil {
+		// TODO: Check if the units are correct.
+		// TODO: Can we assume the defaults are sane?
+		rOpts := wc.GetResources()
+		if rOpts != nil {
+			createConfig.HostConfig.Resources = dockercontainer.Resources{
+				Memory:     rOpts.MemoryLimitInBytes,
+				MemorySwap: DefaultMemorySwap(),
+				CPUShares:  rOpts.CpuShares,
+			}
+		}
+	}
+
 	if networkMode := os.Getenv("CONTAINER_NETWORK"); networkMode != "" {
 		createConfig.HostConfig.NetworkMode = dockercontainer.NetworkMode(networkMode)
 	} else {

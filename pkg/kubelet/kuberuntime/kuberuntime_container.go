@@ -212,6 +212,7 @@ func (m *kubeGenericRuntimeManager) generateContainerConfig(container *v1.Contai
 		StdinOnce:   container.StdinOnce,
 		Tty:         container.TTY,
 		Linux:       m.generateLinuxContainerConfig(container, pod, uid, username),
+		Windows:     m.generateWindowsContainerConfig(container, pod, uid, username),
 	}
 
 	// set environment variables
@@ -269,6 +270,35 @@ func (m *kubeGenericRuntimeManager) generateLinuxContainerConfig(container *v1.C
 	}
 
 	return lc
+}
+
+// generateWindowsContainerConfig generates windows container config for kubelet runtime v1.
+func (m *kubeGenericRuntimeManager) generateWindowsContainerConfig(container *v1.Container, pod *v1.Pod, uid *int64, username string) *runtimeapi.WindowsContainerConfig {
+	wc := &runtimeapi.WindowsContainerConfig{
+		Resources: &runtimeapi.WindowsContainerResources{},
+	}
+
+	// set windows container resources
+	var cpuShares int64
+	cpuRequest := container.Resources.Requests.Cpu()
+	cpuLimit := container.Resources.Limits.Cpu()
+	memoryLimit := container.Resources.Limits.Memory().Value()
+	// If request is not specified, but limit is, we want request to default to limit.
+	// API server does this for new containers, but we repeat this logic in Kubelet
+	// for containers running on existing Kubernetes clusters.
+	if cpuRequest.IsZero() && !cpuLimit.IsZero() {
+		cpuShares = milliCPUToShares(cpuLimit.MilliValue())
+	} else {
+		// if cpuRequest.Amount is nil, then milliCPUToShares will return the minimal number
+		// of CPU shares.
+		cpuShares = milliCPUToShares(cpuRequest.MilliValue())
+	}
+	wc.Resources.CpuShares = cpuShares
+	if memoryLimit != 0 {
+		wc.Resources.MemoryLimitInBytes = memoryLimit
+	}
+
+	return wc
 }
 
 // makeDevices generates container devices for kubelet runtime v1.

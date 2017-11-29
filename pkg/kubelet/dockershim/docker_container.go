@@ -155,8 +155,8 @@ func (ds *dockerService) CreateContainer(podSandboxID string, config *runtimeapi
 	}
 	hc.Resources.Devices = devices
 
+	// TODO: remove and use hypervshim
 	hc.Isolation = "hyperv"
-	hc.Resources.Memory = 512 * 1024 * 1024
 
 	securityOpts, err := ds.getSecurityOpts(config.GetLinux().GetSecurityContext().GetSeccompProfilePath(), securityOptSep)
 	if err != nil {

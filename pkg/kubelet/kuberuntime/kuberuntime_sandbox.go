@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"runtime"
 	"sort"
 
 	"github.com/golang/glog"
@@ -126,6 +127,14 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxConfig(pod *v1.Pod, attemp
 	}
 	podSandboxConfig.Linux = lc
 
+	if runtime.GOOS == "windows" {
+		wc, err := m.generatePodSandboxWindowsConfig(pod)
+		if err != nil {
+			return nil, err
+		}
+		podSandboxConfig.Windows = wc
+	}
+
 	return podSandboxConfig, nil
 }
 
@@ -179,6 +188,16 @@ func (m *kubeGenericRuntimeManager) generatePodSandboxLinuxConfig(pod *v1.Pod) (
 	}
 
 	return lc, nil
+}
+
+// generatePodSandboxWindowsConfig generates WindowsPodSandboxConfig from v1.Pod.
+func (m *kubeGenericRuntimeManager) generatePodSandboxWindowsConfig(pod *v1.Pod) (*runtimeapi.WindowsPodSandboxConfig, error) {
+	wc := &runtimeapi.WindowsPodSandboxConfig{
+		// TODO: remove hard-coded memory limit, the memory limit is applicable with nanoserver
+		MemoryLimitInBytes: 64 * 1024 * 1024,
+	}
+
+	return wc, nil
 }
 
 // getKubeletSandboxes lists all (or just the running) sandboxes managed by kubelet.
